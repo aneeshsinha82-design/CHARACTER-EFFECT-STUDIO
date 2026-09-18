@@ -1,72 +1,18 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>AI Video Generator — Multi Character Camera</title>
-<link rel="stylesheet" href="style.css">
-</head>
-<body>
-<header class="topbar">
-  <div><div class="eyebrow">AI VIDEO GENERATOR</div><h1>Multi-Character Camera Studio</h1><p>Build a scene, compare character sizes, and direct the camera.</p></div>
-  <div class="live"><span></span> Browser Preview</div>
-</header>
-
-<main class="layout">
-<aside class="left">
-<section class="panel">
-  <div class="sectionTitle"><b>1.</b> SETTINGS</div>
-  <div class="subTitle">A. Characters List</div>
-  <div id="characters" class="characters"></div>
-  <button id="addCharacter" class="addBtn">＋ Add More Characters <small>(No limit)</small></button>
-  <div class="subTitle">B. Scene Settings</div>
-  <label>Camera Angle<select id="angle"><option>Eye Level</option><option>Low Angle</option><option>High Angle</option><option>Overhead</option></select></label>
-  <label>Camera Speed<select id="speed"><option>Slow</option><option selected>Normal</option><option>Fast</option></select></label>
-  <label>Background<div class="bgBtns"><button id="bgUpload" class="smallBtn">Upload</button><button id="aiBg" class="smallBtn">AI Generate</button><input id="bgFile" type="file" accept="image/*" hidden></div></label>
-  <label>Visual Style<select id="style"><option>Cinematic</option><option>Anime</option><option>3D CGI</option><option>Realistic</option><option>Stylized</option></select></label>
-</section>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Character Size Comparison Studio</title><link rel="stylesheet" href="style.css"></head><body>
+<header><div><div class="eyebrow">SIZE COMPARISON MAKER</div><h1>Character Comparison Studio</h1><p>Create the kind of character size-comparison videos commonly seen on YouTube.</p></div><div class="badge">● Browser Preview</div></header>
+<main>
+<aside>
+<section class="panel"><h2>1. CHARACTERS</h2><div id="list"></div><button id="add" class="add">＋ Add Character</button><p class="hint">Add as many characters as you want. Set each character's real height so their size is proportional.</p></section>
+<section class="panel"><h2>2. VIDEO SETTINGS</h2><label>Duration <b id="durText">20s</b><input id="duration" type="range" min="5" max="120" value="20"></label>
+<label>Aspect Ratio<select id="aspect"><option value="16:9">16:9</option><option value="9:16">9:16</option><option value="1:1">1:1</option></select></label>
+<label>Resolution<select id="resolution"><option>720p</option><option selected>1080p</option><option>4K</option></select></label>
+<label>Comparison Mode<select id="mode"><option value="pan">Camera Pan</option><option value="zoom">Zoom Through Scale</option><option value="all">All Characters</option></select></label>
+<label class="check"><input id="labels" type="checkbox" checked> Show names and heights</label>
+<label class="check"><input id="grid" type="checkbox" checked> Show measurement grid</label>
+<button id="render" class="primary">● Render & Download</button><div id="msg" class="msg">Add characters to begin.</div></section>
 </aside>
-
-<section class="center">
-<section class="panel previewPanel">
-  <div class="sectionTitle"><b>2.</b> SCENE PREVIEW <span id="ratioLabel">16:9</span></div>
-  <div class="previewShell"><canvas id="scene" width="960" height="540"></canvas><div id="dropHint">Add character references to begin</div></div>
-  <div class="previewInfo"><span id="focusLabel">Camera: Start</span><span id="clock">00:00 / 00:10</span></div>
+<section class="main">
+<section class="panel preview"><div class="bar"><h2>3. LIVE COMPARISON</h2><span id="clock">00:00 / 00:20</span></div><div class="stage"><canvas id="c" width="960" height="540"></canvas></div></section>
+<section class="panel"><div class="bar"><h2>4. COMPARISON ORDER</h2><span>Drag cards to reorder</span></div><div id="timeline" class="timeline"></div><div class="controls"><button id="play" class="primary">▶ Play</button><button id="pause">Ⅱ Pause</button><button id="reset">↻ Reset</button></div></section>
 </section>
-
-<section class="panel">
-  <div class="sectionTitle"><b>3.</b> CAMERA PATH / TIMELINE</div>
-  <div class="path" id="path"></div>
-  <div class="timelineBar"><div id="playhead"></div></div>
-  <div id="shots" class="shots"></div>
-</section>
-
-<section class="panel controls">
-  <div class="sectionTitle"><b>4.</b> PREVIEW CONTROLS</div>
-  <div class="controlRow">
-    <button id="play" class="primary">▶ Play</button><button id="pause" class="secondary">Ⅱ Pause</button><button id="reset" class="secondary">↻ Reset</button>
-    <label class="toggle"><input id="useScene" type="checkbox" checked><span></span> Use Scene for AI</label>
-  </div>
-  <div class="note">The camera automatically reframes for the selected character's actual size. Larger/smaller characters are kept at a consistent visual scale during focus shots.</div>
-</section>
-</section>
-
-<aside class="right">
-<section class="panel">
-  <div class="sectionTitle"><b>5.</b> OUTPUT SETTINGS</div>
-  <div class="label">Resolution</div><div class="choices" id="res"><button data-v="720p">720p</button><button data-v="1080p" class="selected">1080p (HD)</button><button data-v="4K">4K</button></div>
-  <div class="label">Aspect Ratio</div><div class="choices" id="aspect"><button data-v="16:9" class="selected">16:9</button><button data-v="9:16">9:16</button><button data-v="1:1">1:1</button></div>
-  <div class="label">Video Duration <strong id="durationValue">10 seconds</strong></div><input id="duration" class="range" type="range" min="3" max="60" value="10">
-  <div class="rangeEnds"><span>3s</span><span>60s</span></div>
-  <div class="label">Other Options</div>
-  <label class="check"><input id="consistency" type="checkbox" checked> Keep character consistency</label>
-  <label class="check"><input id="referenceStyle" type="checkbox" checked> Maintain reference style</label>
-  <label class="check"><input id="lighting" type="checkbox"> Enhance cinematic lighting</label>
-  <button id="generate" class="generate">GENERATE VIDEO</button>
-  <div id="genBox" class="genBox hidden"></div>
-</section>
-</aside>
-</main>
-<footer>Local browser preview • Character references stay on your device</footer>
-<script src="script.js"></script>
-</body>
-</html>
+</main><footer>Proportional character sizing • Local browser processing</footer><script src="script.js"></script></body></html>
