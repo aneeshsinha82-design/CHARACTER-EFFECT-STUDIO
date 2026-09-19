@@ -1,19 +1,443 @@
-const $=id=>document.getElementById(id),c=$('c'),x=c.getContext('2d');let chars=[],bg=null,playing=false,raf=0,start=0,duration=20;const GAP=.08;
-function fit(){const [a,b]=$('aspect').value.split(':').map(Number);c.width=960;c.height=Math.round(960*b/a);draw(0)}
-function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
-function load(file){return new Promise(resolve=>{const im=new Image;im.onload=()=>resolve(im);im.src=URL.createObjectURL(file)})}
-function alphaBox(im){const q=document.createElement('canvas'),w=Math.min(im.naturalWidth,600),h=Math.min(im.naturalHeight,600);q.width=w;q.height=h;const z=q.getContext('2d');z.drawImage(im,0,0,w,h);const d=z.getImageData(0,0,w,h).data;let X=w,Y=h,R=-1,B=-1;for(let yy=0;yy<h;yy++)for(let xx=0;xx<w;xx++)if(d[(yy*w+xx)*4+3]>10){X=Math.min(X,xx);Y=Math.min(Y,yy);R=Math.max(R,xx);B=Math.max(B,yy)}return R<0?{x:0,y:0,w,h}:{x:X,y:Y,w:R-X+1,h:B-Y+1}}
-function add(file){load(file).then(im=>{chars.push({img:im,name:'Character '+(chars.length+1),height:180,box:alphaBox(im)});render();draw(0);$('msg').textContent=chars.length+' character'+(chars.length>1?'s':'')+' added.'})}
-$('add').onclick=()=>{const i=document.createElement('input');i.type='file';i.accept='image/*';i.onchange=()=>i.files[0]&&add(i.files[0]);i.click()}
-function render(){const box=$('list'),tl=$('timeline');box.innerHTML='';tl.innerHTML='';chars.forEach((ch,i)=>{const d=document.createElement('div');d.className='char';d.innerHTML='<img src="'+ch.img.src+'"><div><input data-i="'+i+'" data-k="name" value="'+esc(ch.name)+'"><input class="height" data-i="'+i+'" data-k="height" type="number" min="1" step="1" value="'+ch.height+'" placeholder="Height"><label class="upload">Replace image<input data-i="'+i+'" data-k="file" type="file" accept="image/*" hidden></label></div><button data-del="'+i+'">×</button>';box.appendChild(d);const card=document.createElement('div');card.className='card';card.draggable=true;card.dataset.i=i;card.innerHTML='<img src="'+ch.img.src+'"><strong>'+esc(ch.name)+'</strong><small>'+ch.height+' cm</small>';tl.appendChild(card)});
-box.querySelectorAll('[data-k=name],[data-k=height]').forEach(e=>e.oninput=()=>{chars[+e.dataset.i][e.dataset.k]=e.dataset.k==='height'?Math.max(1,+e.value||1):e.value;render();draw(0)});box.querySelectorAll('[data-k=file]').forEach(e=>e.onchange=()=>e.files[0]&&load(e.files[0]).then(im=>{chars[+e.dataset.i].img=im;chars[+e.dataset.i].box=alphaBox(im);render();draw(0)}));box.querySelectorAll('[data-del]').forEach(e=>e.onclick=()=>{chars.splice(+e.dataset.del,1);render();draw(0)});let drag=null;tl.querySelectorAll('.card').forEach(card=>{card.ondragstart=()=>{drag=+card.dataset.i;card.classList.add('drag')};card.ondragend=()=>card.classList.remove('drag');card.ondragover=e=>e.preventDefault();card.ondrop=e=>{e.preventDefault();const to=+card.dataset.i;if(drag===null||drag===to)return;const q=chars.splice(drag,1)[0];chars.splice(to,0,q);drag=null;render();draw(0)}})}
-function maxHeight(){return chars.reduce((m,ch)=>Math.max(m,ch.height),1)}
-function camera(t){if(!chars.length)return{x:.5,scale:1,index:-1};const mode=$('mode').value,n=chars.length;const phase=t/duration;let pos;if(mode==='all')return{x:.5,scale:1,index:-1};const idx=Math.min(n-1,Math.floor(phase*n));const local=(phase*n)%1;const next=Math.min(n-1,idx+1);const p=local<.72?local/.72:1;const a=idx,b=next;const xa=.08+a*(.84/Math.max(1,n-1)),xb=.08+b*(.84/Math.max(1,n-1));const xPos=n===1?.5:xa+(xb-xa)*(local<.72?ease(p):0);const h=chars[idx].height*(local<.72?1:1);const largest=maxHeight();const target=$('mode').value==='zoom'?Math.max(.35,Math.min(1.8,largest/h)):(.78+0.22*(largest/h));return{x:xPos,scale:target,index:idx}}
-function ease(v){return v<.5?2*v*v:1-Math.pow(-2*v+2,2)/2}
-function draw(t){const W=c.width,H=c.height;x.clearRect(0,0,W,H);x.fillStyle='#dce2e8';x.fillRect(0,0,W,H);if(bg)x.drawImage(bg,0,0,W,H);else{let g=x.createLinearGradient(0,0,0,H);g.addColorStop(0,'#eef1f4');g.addColorStop(1,'#b9c1ca');x.fillStyle=g;x.fillRect(0,0,W,H)}const ground=H*.82;x.strokeStyle='#8994a1';x.lineWidth=2;x.beginPath();x.moveTo(0,ground);x.lineTo(W,ground);x.stroke();if($('grid').checked){x.strokeStyle='rgba(80,95,110,.16)';x.lineWidth=1;for(let i=0;i<=20;i++){const xx=i*W/20;x.beginPath();x.moveTo(xx,ground);x.lineTo(W/2+(xx-W/2)*.35,H*.62);x.stroke()}for(let i=0;i<8;i++){const yy=ground-i*H*.07;x.beginPath();x.moveTo(0,yy);x.lineTo(W,yy);x.stroke()}}if(!chars.length)return;const largest=maxHeight(),baseScale=H*.68/largest,cam=camera(t);chars.forEach((ch,i)=>{const rel=ch.height/largest;const natural=ch.box.h||ch.img.naturalHeight;const scale=baseScale*(ch.height/natural);const worldX=.06+i*(.88/Math.max(1,chars.length-1));let sx=(worldX-cam.x)*W*cam.scale+W/2,sy=ground;const alpha=cam.index>=0&&i!==cam.index&&$('mode').value!=='all'?.72:1;x.save();x.globalAlpha=alpha;const h=ch.img.naturalHeight*scale*cam.scale,w=ch.img.naturalWidth*scale*cam.scale;x.drawImage(ch.img,sx-w/2,sy-h*.9,w,h);if($('labels').checked){x.textAlign='center';x.fillStyle='#182333';x.font='700 '+Math.max(12,W*.014)+'px system-ui';x.fillText(ch.name,sx,ground+22*cam.scale);x.font='500 '+Math.max(10,W*.011)+'px system-ui';x.fillStyle='#4e5d70';x.fillText(ch.height+' cm',sx,ground+39*cam.scale)}x.restore()});$('clock').textContent='00:'+String(Math.floor(t)).padStart(2,'0')+' / 00:'+String(duration).padStart(2,'0')}
-function update(){duration=+$('duration').value;$('durText').textContent=duration+'s';draw(0)}
-$('duration').oninput=update;$('aspect').onchange=fit;$('mode').onchange=()=>draw(0);
-$('play').onclick=()=>{if(playing)return;playing=true;start=performance.now();raf=requestAnimationFrame(loop)};$('pause').onclick=()=>{playing=false;cancelAnimationFrame(raf)};$('reset').onclick=()=>{playing=false;cancelAnimationFrame(raf);draw(0)}
-function loop(now){if(!playing)return;const t=((now-start)/1000)%duration;draw(t);raf=requestAnimationFrame(loop)}
-$('render').onclick=()=>{if(!chars.length){$('msg').textContent='Add characters first.';return}const fps=30,m=MediaRecorder.isTypeSupported('video/webm;codecs=vp9')?'video/webm;codecs=vp9':'video/webm',r=new MediaRecorder(c.captureStream(fps),{mimeType:m,videoBitsPerSecond:16000000}),chunks=[];r.ondataavailable=e=>e.data.size&&chunks.push(e.data);r.onstop=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(chunks,{type:'video/webm'}));a.download='character-size-comparison.webm';a.click();$('msg').textContent='Comparison video rendered — WebM download started.'};r.start();$('msg').textContent='Rendering…';const z=performance.now();function q(now){const t=(now-z)/1000;if(t>=duration){draw(duration-.001);r.stop();return}draw(t);requestAnimationFrame(q)}requestAnimationFrame(q)}
-fit();update();render();
+const $ = id => document.getElementById(id);
+const canvas = $('c');
+const ctx = canvas.getContext('2d');
+
+let chars = [];
+let playing = false;
+let raf = 0;
+let startTime = 0;
+let duration = 20;
+
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const easeInOut = t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+
+function fitCanvas() {
+  const [a, b] = $('aspect').value.split(':').map(Number);
+  canvas.width = 960;
+  canvas.height = Math.round(canvas.width * b / a);
+  draw(0);
+}
+
+function esc(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function loadImage(file) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+function alphaBox(img) {
+  const max = 900;
+  const scale = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+  const w = Math.max(1, Math.round(img.naturalWidth * scale));
+  const h = Math.max(1, Math.round(img.naturalHeight * scale));
+  const tmp = document.createElement('canvas');
+  tmp.width = w; tmp.height = h;
+  const tc = tmp.getContext('2d');
+  tc.drawImage(img, 0, 0, w, h);
+  const data = tc.getImageData(0, 0, w, h).data;
+  let left = w, top = h, right = -1, bottom = -1;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (data[(y * w + x) * 4 + 3] > 12) {
+        left = Math.min(left, x); top = Math.min(top, y);
+        right = Math.max(right, x); bottom = Math.max(bottom, y);
+      }
+    }
+  }
+  if (right < 0) return {x:0, y:0, w:img.naturalWidth, h:img.naturalHeight};
+  return {
+    x: left / scale, y: top / scale,
+    w: (right - left + 1) / scale,
+    h: (bottom - top + 1) / scale
+  };
+}
+
+function addCharacter(file) {
+  loadImage(file).then(img => {
+    chars.push({
+      img,
+      name: 'Character ' + (chars.length + 1),
+      height: 180,
+      box: alphaBox(img)
+    });
+    renderLists();
+    draw(0);
+    $('msg').textContent = chars.length + ' character' + (chars.length === 1 ? '' : 's') + ' added.';
+  });
+}
+
+$('add').onclick = () => {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.onchange = () => input.files[0] && addCharacter(input.files[0]);
+  input.click();
+};
+
+function renderLists() {
+  const list = $('list');
+  const timeline = $('timeline');
+  list.innerHTML = '';
+  timeline.innerHTML = '';
+
+  chars.forEach((ch, i) => {
+    const row = document.createElement('div');
+    row.className = 'char';
+    row.innerHTML =
+      '<img src="' + ch.img.src + '">' +
+      '<div>' +
+        '<input data-i="' + i + '" data-k="name" value="' + esc(ch.name) + '">' +
+        '<input class="height" data-i="' + i + '" data-k="height" type="number" min="1" step="1" value="' + ch.height + '" placeholder="Height (cm)">' +
+        '<label class="upload">Replace image<input data-i="' + i + '" data-k="file" type="file" accept="image/*" hidden></label>' +
+      '</div>' +
+      '<button data-del="' + i + '" aria-label="Remove">×</button>';
+    list.appendChild(row);
+
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.draggable = true;
+    card.dataset.i = i;
+    card.innerHTML =
+      '<img src="' + ch.img.src + '">' +
+      '<strong>' + esc(ch.name) + '</strong>' +
+      '<small>' + ch.height + ' cm</small>';
+    timeline.appendChild(card);
+  });
+
+  list.querySelectorAll('[data-k=name]').forEach(el => {
+    el.oninput = () => {
+      chars[+el.dataset.i].name = el.value;
+      renderLists();
+      draw(0);
+    };
+  });
+
+  list.querySelectorAll('[data-k=height]').forEach(el => {
+    el.oninput = () => {
+      chars[+el.dataset.i].height = Math.max(1, Number(el.value) || 1);
+      renderLists();
+      draw(0);
+    };
+  });
+
+  list.querySelectorAll('[data-k=file]').forEach(el => {
+    el.onchange = () => {
+      if (!el.files[0]) return;
+      loadImage(el.files[0]).then(img => {
+        chars[+el.dataset.i].img = img;
+        chars[+el.dataset.i].box = alphaBox(img);
+        renderLists();
+        draw(0);
+      });
+    };
+  });
+
+  list.querySelectorAll('[data-del]').forEach(el => {
+    el.onclick = () => {
+      chars.splice(+el.dataset.del, 1);
+      renderLists();
+      draw(0);
+    };
+  });
+
+  let dragIndex = null;
+  timeline.querySelectorAll('.card').forEach(card => {
+    card.ondragstart = () => {
+      dragIndex = +card.dataset.i;
+      card.classList.add('drag');
+    };
+    card.ondragend = () => card.classList.remove('drag');
+    card.ondragover = e => e.preventDefault();
+    card.ondrop = e => {
+      e.preventDefault();
+      const to = +card.dataset.i;
+      if (dragIndex === null || dragIndex === to) return;
+      const moved = chars.splice(dragIndex, 1)[0];
+      chars.splice(to, 0, moved);
+      dragIndex = null;
+      renderLists();
+      draw(0);
+    };
+  });
+}
+
+function maxHeight() {
+  return chars.reduce((m, ch) => Math.max(m, ch.height), 1);
+}
+
+function characterX(index) {
+  if (chars.length <= 1) return 0;
+  return -4.2 + index * 8.4 / (chars.length - 1);
+}
+
+/*
+  Camera model:
+  - Every character stands on the exact same ground plane.
+  - The camera travels from one character to the next.
+  - During each segment it moves 68% of the time, then holds on the
+    character for the remaining 32%.
+  - Camera zoom is calculated from the focused character's real height,
+    so a tall character automatically causes the camera to pull back
+    while a short character causes it to move closer.
+*/
+function cameraAt(t) {
+  if (!chars.length) return {x:0, zoom:1, focus:-1, progress:0};
+  if ($('mode').value === 'all') return {x:0, zoom:1, focus:-1, progress:0};
+
+  const n = chars.length;
+  if (n === 1) {
+    return {x: characterX(0), zoom: fitZoom(chars[0]), focus:0, progress:1};
+  }
+
+  const p = clamp(t / duration, 0, 0.999999);
+  const segment = p * (n - 1);
+  const i = Math.floor(segment);
+  const local = segment - i;
+  const moveEnd = 0.68;
+  const moveP = clamp(local / moveEnd, 0, 1);
+  const focus = moveP < 1 ? i : Math.min(i + 1, n - 1);
+  const x0 = characterX(i);
+  const x1 = characterX(Math.min(i + 1, n - 1));
+  const x = moveP < 1 ? lerp(x0, x1, easeInOut(moveP)) : x1;
+
+  const h0 = chars[i].height;
+  const h1 = chars[Math.min(i + 1, n - 1)].height;
+  const targetHeight = moveP < 1 ? lerp(h0, h1, easeInOut(moveP)) : h1;
+
+  return {
+    x,
+    zoom: fitZoom({height: targetHeight}),
+    focus,
+    progress: p
+  };
+}
+
+function fitZoom(ch) {
+  const largest = maxHeight();
+  const h = ch.height || 1;
+  // The focused character fills roughly 74% of the viewport height.
+  // Taller characters therefore pull the camera back; shorter characters
+  // make the camera come closer while preserving proportional sizing.
+  return clamp(largest / h, 0.38, 2.15);
+}
+
+function worldToScreen(worldX, camera) {
+  return canvas.width / 2 + (worldX - camera.x) * canvas.width * 0.075 * camera.zoom;
+}
+
+function drawBackground(W, H, ground) {
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#f5f7fa');
+  g.addColorStop(1, '#c7ced7');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = 'rgba(255,255,255,.55)';
+  ctx.fillRect(0, ground, W, H - ground);
+
+  ctx.strokeStyle = '#7e8a97';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, ground);
+  ctx.lineTo(W, ground);
+  ctx.stroke();
+
+  if ($('grid').checked) {
+    ctx.strokeStyle = 'rgba(75,88,102,.14)';
+    ctx.lineWidth = 1;
+    for (let cm = 0; cm <= 250; cm += 25) {
+      const y = ground - (cm / Math.max(250, maxHeight())) * (H * 0.70);
+      if (y < 0) continue;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(W, y);
+      ctx.stroke();
+
+      ctx.fillStyle = 'rgba(60,72,86,.55)';
+      ctx.font = '10px system-ui';
+      ctx.textAlign = 'left';
+      ctx.fillText(cm + ' cm', 8, y - 3);
+    }
+  }
+}
+
+function draw(t) {
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const ground = H * 0.82;
+  drawBackground(W, H, ground);
+
+  if (!chars.length) {
+    ctx.fillStyle = '#667487';
+    ctx.font = '600 18px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('Add character images to begin the comparison', W / 2, H / 2);
+    $('clock').textContent = '00:00 / 00:' + String(duration).padStart(2, '0');
+    return;
+  }
+
+  const camera = cameraAt(t);
+  const largest = maxHeight();
+  const baseVisualScale = (H * 0.70) / largest;
+  const focused = camera.focus;
+
+  chars.forEach((ch, i) => {
+    const box = ch.box || {x:0, y:0, w:ch.img.naturalWidth, h:ch.img.naturalHeight};
+    const naturalVisualH = Math.max(1, box.h);
+    const visualScale = baseVisualScale * (ch.height / naturalVisualH) * camera.zoom;
+
+    const visualW = box.w * visualScale;
+    const visualH = naturalVisualH * visualScale;
+    const centerX = worldToScreen(characterX(i), camera);
+    const left = centerX - visualW / 2;
+    const top = ground - visualH;
+
+    let alpha = 1;
+    if ($('mode').value !== 'all' && focused >= 0 && i !== focused) {
+      const distance = Math.abs(i - focused);
+      alpha = clamp(0.72 - distance * 0.16, 0.18, 0.72);
+    }
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+
+    // Soft contact shadow.
+    ctx.fillStyle = 'rgba(30,38,48,.16)';
+    ctx.beginPath();
+    ctx.ellipse(centerX, ground + 3, Math.max(8, visualW * .28), 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.drawImage(
+      ch.img,
+      box.x, box.y, box.w, box.h,
+      left, top, visualW, visualH
+    );
+
+    if ($('labels').checked) {
+      ctx.textAlign = 'center';
+      ctx.font = '700 ' + Math.max(11, W * .014) + 'px system-ui';
+      ctx.fillStyle = '#182333';
+      ctx.fillText(ch.name, centerX, ground + 22);
+      ctx.font = '500 ' + Math.max(10, W * .011) + 'px system-ui';
+      ctx.fillStyle = '#536176';
+      ctx.fillText(ch.height + ' cm', centerX, ground + 39);
+    }
+
+    ctx.restore();
+  });
+
+  // Camera/focus indicator.
+  if ($('mode').value !== 'all' && focused >= 0) {
+    const fx = worldToScreen(characterX(focused), camera);
+    ctx.strokeStyle = 'rgba(39,123,231,.32)';
+    ctx.setLineDash([5, 5]);
+    ctx.beginPath();
+    ctx.moveTo(fx, 0);
+    ctx.lineTo(fx, ground);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  const seconds = Math.min(duration, Math.max(0, t));
+  $('clock').textContent =
+    '00:' + String(Math.floor(seconds)).padStart(2, '0') +
+    ' / 00:' + String(duration).padStart(2, '0');
+}
+
+function refreshDuration() {
+  duration = Number($('duration').value);
+  $('durText').textContent = duration + 's';
+  draw(0);
+}
+
+$('duration').oninput = refreshDuration;
+$('aspect').onchange = fitCanvas;
+$('mode').onchange = () => draw(0);
+
+$('play').onclick = () => {
+  if (playing || !chars.length) return;
+  playing = true;
+  startTime = performance.now();
+  raf = requestAnimationFrame(loop);
+};
+
+$('pause').onclick = () => {
+  playing = false;
+  cancelAnimationFrame(raf);
+};
+
+$('reset').onclick = () => {
+  playing = false;
+  cancelAnimationFrame(raf);
+  draw(0);
+};
+
+function loop(now) {
+  if (!playing) return;
+  const elapsed = (now - startTime) / 1000;
+  if (elapsed >= duration) {
+    draw(duration);
+    playing = false;
+    return;
+  }
+  draw(elapsed);
+  raf = requestAnimationFrame(loop);
+}
+
+$('render').onclick = () => {
+  if (!chars.length) {
+    $('msg').textContent = 'Add characters first.';
+    return;
+  }
+
+  const fps = 30;
+  const mime = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+    ? 'video/webm;codecs=vp9'
+    : 'video/webm';
+
+  const recorder = new MediaRecorder(canvas.captureStream(fps), {
+    mimeType: mime,
+    videoBitsPerSecond: $('resolution').value === '4K' ? 30000000 : 16000000
+  });
+
+  const chunks = [];
+  recorder.ondataavailable = e => e.data.size && chunks.push(e.data);
+  recorder.onstop = () => {
+    const blob = new Blob(chunks, {type:'video/webm'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'character-size-comparison.webm';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    $('msg').textContent = 'Comparison video rendered — WebM download started.';
+  };
+
+  recorder.start();
+  $('msg').textContent = 'Rendering the full camera journey…';
+
+  const renderStart = performance.now();
+  function renderFrame(now) {
+    const elapsed = (now - renderStart) / 1000;
+    if (elapsed >= duration) {
+      draw(duration);
+      recorder.stop();
+      return;
+    }
+    draw(elapsed);
+    requestAnimationFrame(renderFrame);
+  }
+  requestAnimationFrame(renderFrame);
+};
+
+fitCanvas();
+refreshDuration();
+renderLists();
