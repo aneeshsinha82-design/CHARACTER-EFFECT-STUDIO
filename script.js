@@ -113,18 +113,31 @@ function renderLists() {
     timeline.appendChild(card);
   });
 
+  // IMPORTANT: do not rebuild the character list while the user is typing.
+  // Rebuilding the DOM on every keystroke makes the input lose focus/caret.
   list.querySelectorAll('[data-k=name]').forEach(el => {
     el.oninput = () => {
-      chars[+el.dataset.i].name = el.value;
-      renderLists();
+      const i = +el.dataset.i;
+      chars[i].name = el.value;
+      const card = timeline.querySelector('.card[data-i="' + i + '"]');
+      if (card) {
+        const title = card.querySelector('strong');
+        if (title) title.textContent = el.value || 'Unnamed Character';
+      }
       draw(0);
     };
   });
 
   list.querySelectorAll('[data-k=height]').forEach(el => {
     el.oninput = () => {
-      chars[+el.dataset.i].height = Math.max(1, Number(el.value) || 1);
-      renderLists();
+      const i = +el.dataset.i;
+      const value = Number(el.value);
+      chars[i].height = Math.max(1, Number.isFinite(value) ? value : 1);
+      const card = timeline.querySelector('.card[data-i="' + i + '"]');
+      if (card) {
+        const height = card.querySelector('small');
+        if (height) height.textContent = chars[i].height + ' cm';
+      }
       draw(0);
     };
   });
