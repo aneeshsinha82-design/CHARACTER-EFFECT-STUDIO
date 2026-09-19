@@ -27,11 +27,57 @@ function esc(s) {
 }
 
 function loadImage(file) {
-  return new Promise(resolve => {
+  return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve(img);
+    img.onerror = reject;
     img.src = URL.createObjectURL(file);
   });
+}
+
+function loadVideo(file) {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement('video');
+    video.muted = true;
+    video.loop = true;
+    video.playsInline = true;
+    video.preload = 'auto';
+    video.onloadedmetadata = () => resolve(video);
+    video.onerror = reject;
+    video.src = URL.createObjectURL(file);
+    video.load();
+  });
+}
+
+function isVideoFile(file) {
+  return file.type.startsWith('video/') || /\.(mp4|webm|mov)$/i.test(file.name);
+}
+
+async function loadCharacterMedia(file) {
+  if (isVideoFile(file)) return {type:'video', media:await loadVideo(file)};
+  return {type:'image', media:await loadImage(file)};
+}
+
+function mediaElement(ch) {
+  return ch.type === 'video' ? ch.media : ch.img;
+}
+
+function mediaWidth(ch) {
+  return ch.type === 'video' ? ch.media.videoWidth : ch.img.naturalWidth;
+}
+
+function mediaHeight(ch) {
+  return ch.type === 'video' ? ch.media.videoHeight : ch.img.naturalHeight;
+}
+
+async function playCharacterVideos(reset=false) {
+  const videos = chars.filter(ch => ch.type === 'video').map(ch => ch.media);
+  if (reset) videos.forEach(v => { try { v.currentTime = 0; } catch(e) {} });
+  await Promise.all(videos.map(v => v.play().catch(() => {})));
+}
+
+function stopCharacterVideos() {
+  chars.filter(ch => ch.type === 'video').forEach(ch => ch.media.pause());
 }
 
 function alphaBox(img) {
@@ -61,24 +107,32 @@ function alphaBox(img) {
   };
 }
 
-function addCharacter(file) {
-  loadImage(file).then(img => {
+async function addCharacter(file) {
+  try {
+    const loaded = await loadCharacterMedia(file);
     chars.push({
-      img,
+      type: loaded.type,
+      media: loaded.media,
+      img: loaded.type === 'image' ? loaded.media : null,
+      video: loaded.type === 'video' ? loaded.media : null,
       name: 'Character ' + (chars.length + 1),
       height: 180,
-      box: alphaBox(img)
+      box: loaded.type === 'image'
+        ? alphaBox(loaded.media)
+        : {x:0, y:0, w:loaded.media.videoWidth, h:loaded.media.videoHeight}
     });
     renderLists();
     draw(0);
     $('msg').textContent = chars.length + ' character' + (chars.length === 1 ? '' : 's') + ' added.';
-  });
+  } catch(e) {
+    $('msg').textContent = 'Could not load that image or video.';
+  }
 }
 
 $('add').onclick = () => {
   const input = document.createElement('input');
   input.type = 'file';
-  input.accept = 'image/*';
+  input.accept = 'image/*,video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov';
   input.onchange = () => input.files[0] && addCharacter(input.files[0]);
   input.click();
 };
@@ -93,11 +147,15 @@ function renderLists() {
     const row = document.createElement('div');
     row.className = 'char';
     row.innerHTML =
-      '<img src="' + ch.img.src + '">' +
+      '<div class="media-thumb">' +
+        (ch.type === 'video'
+          ? '<video src="' + ch.media.src + '" muted loop playsinline></video><span class="video-thumb">▶ VIDEO</span>'
+          : '<img src="' + ch.img.src + '">') +
+      '</div>' +
       '<div>' +
         '<input data-i="' + i + '" data-k="name" value="' + esc(ch.name) + '">' +
         '<input class="height" data-i="' + i + '" data-k="height" type="number" min="1" step="1" value="' + ch.height + '" placeholder="Height (cm)">' +
-        '<label class="upload">Replace image<input data-i="' + i + '" data-k="file" type="file" accept="image/*" hidden></label>' +
+        '<label class="upload">Replace media<input data-i="' + i + '" data-k="file" type="file" accept="image/*,video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov" hidden></label>' +
       '</div>' +
       '<button data-del="' + i + '" aria-label="Remove">×</button>';
     list.appendChild(row);
@@ -107,7 +165,11 @@ function renderLists() {
     card.draggable = true;
     card.dataset.i = i;
     card.innerHTML =
-      '<img src="' + ch.img.src + '">' +
+      '<div class="timeline-thumb">' +
+        (ch.type === 'video'
+          ? '<video src="' + ch.media.src + '" muted loop playsinline></video>'
+          : '<img src="' + ch.img.src + '">') +
+      '</div>' +
       '<strong>' + esc(ch.name) + '</strong>' +
       '<small>' + ch.height + ' cm</small>';
     timeline.appendChild(card);
@@ -145,12 +207,18 @@ function renderLists() {
   list.querySelectorAll('[data-k=file]').forEach(el => {
     el.onchange = () => {
       if (!el.files[0]) return;
-      loadImage(el.files[0]).then(img => {
-        chars[+el.dataset.i].img = img;
-        chars[+el.dataset.i].box = alphaBox(img);
+      loadCharacterMedia(el.files[0]).then(loaded => {
+        const i = +el.dataset.i;
+        chars[i].type = loaded.type;
+        chars[i].media = loaded.media;
+        chars[i].img = loaded.type === 'image' ? loaded.media : null;
+        chars[i].video = loaded.type === 'video' ? loaded.media : null;
+        chars[i].box = loaded.type === 'image'
+          ? alphaBox(loaded.media)
+          : {x:0, y:0, w:loaded.media.videoWidth, h:loaded.media.videoHeight};
         renderLists();
         draw(0);
-      });
+      }).catch(() => $('msg').textContent = 'Could not replace that media.');
     };
   });
 
@@ -331,7 +399,7 @@ function draw(t) {
   const focused = camera.focus;
 
   chars.forEach((ch, i) => {
-    const box = ch.box || {x:0, y:0, w:ch.img.naturalWidth, h:ch.img.naturalHeight};
+    const box = ch.box || {x:0, y:0, w:mediaWidth(ch), h:mediaHeight(ch)};
     const naturalVisualH = Math.max(1, box.h);
     const visualScale = baseVisualScale * (ch.height / naturalVisualH) * camera.zoom;
 
@@ -357,7 +425,7 @@ function draw(t) {
     ctx.fill();
 
     ctx.drawImage(
-      ch.img,
+      mediaElement(ch),
       box.x, box.y, box.w, box.h,
       left, top, visualW, visualH
     );
@@ -403,8 +471,9 @@ $('duration').oninput = refreshDuration;
 $('aspect').onchange = fitCanvas;
 $('mode').onchange = () => draw(0);
 
-$('play').onclick = () => {
+$('play').onclick = async () => {
   if (playing || !chars.length) return;
+  await playCharacterVideos(true);
   playing = true;
   startTime = performance.now();
   raf = requestAnimationFrame(loop);
@@ -413,11 +482,14 @@ $('play').onclick = () => {
 $('pause').onclick = () => {
   playing = false;
   cancelAnimationFrame(raf);
+  stopCharacterVideos();
 };
 
 $('reset').onclick = () => {
   playing = false;
   cancelAnimationFrame(raf);
+  stopCharacterVideos();
+  chars.filter(ch => ch.type === 'video').forEach(ch => { try { ch.media.currentTime = 0; } catch(e) {} });
   draw(0);
 };
 
@@ -427,6 +499,7 @@ function loop(now) {
   if (elapsed >= duration) {
     draw(duration);
     playing = false;
+    stopCharacterVideos();
     return;
   }
   draw(elapsed);
@@ -462,8 +535,9 @@ $('render').onclick = () => {
     $('msg').textContent = 'Comparison video rendered — WebM download started.';
   };
 
-  recorder.start();
-  $('msg').textContent = 'Rendering the full camera journey…';
+  playCharacterVideos(true).then(() => {
+    recorder.start();
+    $('msg').textContent = 'Rendering the full camera journey…';
 
   const renderStart = performance.now();
   function renderFrame(now) {
@@ -476,7 +550,8 @@ $('render').onclick = () => {
     draw(elapsed);
     requestAnimationFrame(renderFrame);
   }
-  requestAnimationFrame(renderFrame);
+    requestAnimationFrame(renderFrame);
+  });
 };
 
 /* Background controls */
