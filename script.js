@@ -320,7 +320,7 @@ function draw(t) {
     ctx.fillStyle = '#667487';
     ctx.font = '600 18px system-ui';
     ctx.textAlign = 'center';
-    ctx.fillText('Add character images to begin the comparison', W / 2, H / 2);
+    ctx.fillText('Add character images or videos to begin the comparison', W / 2, H / 2);
     $('clock').textContent = '00:00 / 00:' + String(duration).padStart(2, '0');
     return;
   }
