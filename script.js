@@ -487,7 +487,28 @@ $('bgFile').addEventListener('change', () => {
   });
 });
 
-$('uploadBg').addEventListener('click', () => $('bgFile').click());
+function openBackgroundPicker() {
+  const input = $('bgFile');
+  if (input) {
+    input.removeAttribute('disabled');
+    input.click();
+    return;
+  }
+  const picker = document.createElement('input');
+  picker.type = 'file';
+  picker.accept = 'image/png,image/jpeg,image/webp';
+  picker.onchange = () => {
+    if (!picker.files[0]) return;
+    $('bgFile').files = picker.files;
+    $('bgFile').dispatchEvent(new Event('change'));
+  };
+  document.body.appendChild(picker);
+  picker.click();
+}
+$('uploadBg').addEventListener('click', openBackgroundPicker);
+$('bgUploadBox').addEventListener('click', e => {
+  if (e.target.id !== 'bgFile') openBackgroundPicker();
+});
 $('builtInBg').addEventListener('click', () => {
   backgroundImage = null;
   $('bgFile').value = '';
