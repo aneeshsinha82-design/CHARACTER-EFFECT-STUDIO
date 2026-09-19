@@ -339,16 +339,44 @@ function draw(t) {
     const visualH = naturalVisualH * visualScale;
     const centerX = worldToScreen(characterX(i), camera);
     const left = centerX - visualW / 2;
-    const top = ground - visualH;
+    let top = ground - visualH;
+
+    // Character entrance: when the camera arrives at a character,
+    // the character smoothly emerges from the ground upward.
+    let entrance = 1;
+    if ($('mode').value !== 'all' && focused >= 0) {
+      const n = chars.length;
+      const segment = n > 1 ? clamp((t / duration) * (n - 1), 0, n - 1) : 0;
+      const target = i;
+      const arrivalWindow = 0.22;
+      const distanceInSegments = segment - target;
+      if (distanceInSegments >= -arrivalWindow && distanceInSegments < 0.35) {
+        const p = clamp((distanceInSegments + arrivalWindow) / (arrivalWindow + 0.22), 0, 1);
+        entrance = easeInOut(p);
+      } else if (i < focused) {
+        entrance = 1;
+      } else if (i > focused) {
+        entrance = 0;
+      }
+    }
+
+    // Keep the feet planted on the exact ground line while the body rises.
+    top = ground - visualH * entrance;
 
     let alpha = 1;
     if ($('mode').value !== 'all' && focused >= 0 && i !== focused) {
       const distance = Math.abs(i - focused);
       alpha = clamp(0.72 - distance * 0.16, 0.18, 0.72);
+      if (entrance < 1) alpha = Math.max(alpha, entrance);
     }
 
     ctx.save();
     ctx.globalAlpha = alpha;
+    if (entrance < 1) {
+      ctx.beginPath();
+      ctx.rect(0, 0, W, ground);
+      ctx.clip();
+    }
 
     // Soft contact shadow.
     ctx.fillStyle = 'rgba(30,38,48,.16)';
