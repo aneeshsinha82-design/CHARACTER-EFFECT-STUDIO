@@ -276,7 +276,7 @@ function cameraAt(t) {
 
   const n = chars.length;
   if (n === 1) {
-    return {x: characterX(0), zoom: fitZoom(chars[0]), focus:0, progress:1};
+    return {x: characterX(0), zoom:1, focus:0, progress:1};
   }
 
   const p = clamp(t / duration, 0, 0.999999);
@@ -290,25 +290,15 @@ function cameraAt(t) {
   const x1 = characterX(Math.min(i + 1, n - 1));
   const x = moveP < 1 ? lerp(x0, x1, easeInOut(moveP)) : x1;
 
-  const h0 = chars[i].height;
-  const h1 = chars[Math.min(i + 1, n - 1)].height;
-  const targetHeight = moveP < 1 ? lerp(h0, h1, easeInOut(moveP)) : h1;
-
+  // Scale is intentionally locked. Camera movement is horizontal only,
+  // so a character entered as 180 cm can never visually become 200/300 cm
+  // because of camera zoom. Height ratios remain fixed throughout.
   return {
     x,
-    zoom: fitZoom({height: targetHeight}),
+    zoom:1,
     focus,
-    progress: p
+    progress:p
   };
-}
-
-function fitZoom(ch) {
-  const largest = maxHeight();
-  const h = ch.height || 1;
-  // The focused character fills roughly 74% of the viewport height.
-  // Taller characters therefore pull the camera back; shorter characters
-  // make the camera come closer while preserving proportional sizing.
-  return clamp(largest / h, 0.38, 2.15);
 }
 
 function worldToScreen(worldX, camera) {
@@ -401,7 +391,7 @@ function draw(t) {
   chars.forEach((ch, i) => {
     const box = ch.box || {x:0, y:0, w:mediaWidth(ch), h:mediaHeight(ch)};
     const naturalVisualH = Math.max(1, box.h);
-    const visualScale = baseVisualScale * (ch.height / naturalVisualH) * camera.zoom;
+    const visualScale = baseVisualScale * (ch.height / naturalVisualH);
 
     const visualW = box.w * visualScale;
     const visualH = naturalVisualH * visualScale;
