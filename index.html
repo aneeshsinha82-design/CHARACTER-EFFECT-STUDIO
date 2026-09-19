@@ -1,18 +1,58 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Character Size Comparison Studio</title><link rel="stylesheet" href="style.css"></head><body>
-<header><div><div class="eyebrow">SIZE COMPARISON MAKER</div><h1>Character Comparison Studio</h1><p>Create the kind of character size-comparison videos commonly seen on YouTube.</p></div><div class="badge">● Browser Preview</div></header>
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Character Comparison Studio</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<header>
+  <div><div class="eyebrow">SIZE COMPARISON MAKER</div><h1>Character <span>Comparison</span> Studio</h1>
+  <p>Create cinematic character size-comparison videos with automatic camera framing.</p></div>
+  <div class="header-actions"><button class="header-btn">♡ Save Project</button><button class="header-btn">⇩ Load Project</button><button id="renderTop" class="primary top">⇩ Export Video</button></div>
+</header>
 <main>
 <aside>
-<section class="panel"><h2>1. CHARACTERS</h2><div id="list"></div><button id="add" class="add">＋ Add Character</button><p class="hint">Add as many characters as you want. Set each character's real height so their size is proportional.</p></section>
-<section class="panel"><h2>2. VIDEO SETTINGS</h2><label>Duration <b id="durText">20s</b><input id="duration" type="range" min="5" max="120" value="20"></label>
-<label>Aspect Ratio<select id="aspect"><option value="16:9">16:9</option><option value="9:16">9:16</option><option value="1:1">1:1</option></select></label>
-<label>Resolution<select id="resolution"><option>720p</option><option selected>1080p</option><option>4K</option></select></label>
-<label>Comparison Mode<select id="mode"><option value="pan">Camera Pan</option><option value="zoom">Zoom Through Scale</option><option value="all">All Characters</option></select></label>
-<label class="check"><input id="labels" type="checkbox" checked> Show names and heights</label>
-<label class="check"><input id="grid" type="checkbox" checked> Show measurement grid</label>
-<button id="render" class="primary">● Render & Download</button><div id="msg" class="msg">Add characters to begin.</div></section>
-</aside>
-<section class="main">
-<section class="panel preview"><div class="bar"><h2>3. LIVE COMPARISON</h2><span id="clock">00:00 / 00:20</span></div><div class="stage"><canvas id="c" width="960" height="540"></canvas></div></section>
-<section class="panel"><div class="bar"><h2>4. COMPARISON ORDER</h2><span>Drag cards to reorder</span></div><div id="timeline" class="timeline"></div><div class="controls"><button id="play" class="primary">▶ Play</button><button id="pause">Ⅱ Pause</button><button id="reset">↻ Reset</button></div></section>
+<section class="panel">
+  <div class="section-head"><h2>CHARACTERS</h2><span id="count" class="count">0</span><button id="add" class="small-primary">＋ Add Character</button></div>
+  <div id="list"></div>
+  <p class="hint">Add character images and enter their real height. The studio keeps their proportions consistent.</p>
 </section>
-</main><footer>Proportional character sizing • Local browser processing</footer><script src="script.js"></script></body></html>
+
+<section class="panel">
+  <div class="section-head"><h2>BACKGROUND</h2><button id="bgReset" class="ghost">↻ Reset</button></div>
+  <div class="bg-tabs"><button id="builtInBg" class="bg-tab active">Built-in</button><button id="uploadBg" class="bg-tab">Upload Image</button></div>
+  <div id="bgUploadBox" class="upload-box">
+    <div class="upload-icon">▧</div><strong>Click to upload image</strong><small>PNG, JPG, JPEG, WebP • up to 20 MB</small>
+    <input id="bgFile" type="file" accept="image/png,image/jpeg,image/webp">
+  </div>
+  <div id="bgStatus" class="bg-status">Built-in studio background</div>
+  <label>Background Fit<select id="bgFit"><option value="cover">Cover</option><option value="contain">Contain</option><option value="stretch">Stretch</option></select></label>
+  <label>Blur <b id="blurText">0%</b><input id="bgBlur" type="range" min="0" max="20" value="0"></label>
+  <label>Brightness <b id="brightText">100%</b><input id="bgBright" type="range" min="40" max="140" value="100"></label>
+</section>
+
+<section class="panel">
+  <h2>VIDEO SETTINGS</h2>
+  <label>Duration <b id="durText">20s</b><input id="duration" type="range" min="5" max="120" value="20"></label>
+  <label>Aspect Ratio<select id="aspect"><option value="16:9">16:9</option><option value="9:16">9:16</option><option value="1:1">1:1</option></select></label>
+  <label>Resolution<select id="resolution"><option>720p</option><option selected>1080p</option><option>4K</option></select></label>
+  <label>Comparison Mode<select id="mode"><option value="pan">Camera Pan</option><option value="zoom">Zoom Through Scale</option><option value="all">All Characters</option></select></label>
+  <label class="check"><input id="labels" type="checkbox" checked> Show names and heights</label>
+  <label class="check"><input id="grid" type="checkbox" checked> Show measurement grid</label>
+  <button id="render" class="primary full">● Render & Download</button><div id="msg" class="msg">Add characters to begin.</div>
+</section>
+</aside>
+
+<section class="main">
+<section class="panel preview">
+  <div class="bar"><div><h2>LIVE COMPARISON</h2><span class="camera-status">● Camera Preview</span></div><span id="clock">00:00 / 00:20</span></div>
+  <div class="stage"><canvas id="c" width="960" height="540"></canvas><div class="preview-badge">Preview Mode</div></div>
+</section>
+<section class="panel">
+  <div class="bar"><h2>COMPARISON ORDER</h2><span>Drag cards to reorder</span></div>
+  <div id="timeline" class="timeline"></div>
+  <div class="controls"><button id="play" class="primary">▶ Play</button><button id="pause">Ⅱ Pause</button><button id="reset">↻ Reset</button></div>
+</section>
+<div class="tip">ⓘ <b>Tip:</b> The camera automatically adjusts distance based on each character's height, just like character comparison videos.</div>
+</section>
+</main>
+<footer>Proportional character sizing • Local browser processing</footer>
+<script src="script.js"></script></body></html>
